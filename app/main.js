@@ -45,10 +45,13 @@
   };
   var PRIVATE_FONTS = window.CleanFramePrivateFontIDs || [], fontMetrics = {}, unavailableFonts = {}, widthCache = {}, fontsReady = false;
   var LOOK_KEYS = ['bg', 'layout', 'apps', 'font', 'controls', 'focus', 'material'];
-  var LOOK_VALUES = { bg: ['dark', 'light', 'photo'], layout: ['list', 'dock'], apps: ['icons', 'both', 'text'], font: Object.keys(FONTS).filter(function (id) { return id === 'manrope' || PRIVATE_FONTS.indexOf(id) >= 0; }), controls: ['icons', 'both', 'text'], focus: ['type', 'glass'], material: ['soft', 'frost', 'tint'] };
+  var LOOK_VALUES = { bg: ['dark', 'light', 'photo'], layout: ['list', 'dock', 'rows'], apps: ['icons', 'both', 'text'], font: Object.keys(FONTS).filter(function (id) { return id === 'manrope' || PRIVATE_FONTS.indexOf(id) >= 0; }), controls: ['icons', 'both', 'text'], focus: ['type', 'glass'], material: ['soft', 'frost', 'tint'] };
   var LOOK_NAMES = { bg: 'Background', layout: 'Layout', apps: 'Apps', font: 'Font', controls: 'Home controls', focus: 'Focus', material: 'Material' };
-  var VALUE_NAMES = { dark: 'Dark', light: 'Light', photo: 'Photo', list: 'List', dock: 'Dock', type: 'Type', glass: 'Glass', soft: 'Soft', frost: 'Frost', tint: 'Clear tint', icons: 'Icons', both: 'Icons and text', text: 'Text' };
-  var UTIL = { art: ['Art Mode', 'art'], apps: ['All apps', 'apps'], arrange: ['Arrange', 'arrange'], settings: ['Settings', 'settings'] };
+  var VALUE_NAMES = { dark: 'Dark', light: 'Light', photo: 'Photo', list: 'List', dock: 'Dock', rows: 'Rows', type: 'Type', glass: 'Glass', soft: 'Soft', frost: 'Frost', tint: 'Clear tint', icons: 'Icons', both: 'Icons and text', text: 'Text' };
+  var INPUTS = [{ id: 'hdmi1', name: 'HDMI 1', number: 1 }, { id: 'hdmi2', name: 'HDMI 2', number: 2 }, { id: 'hdmi3', name: 'HDMI 3', number: 3 }];
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var UTIL = { art:['Art Mode', 'art'], apps: ['All apps', 'apps'], arrange: ['Arrange', 'arrange'], settings: ['Settings', 'settings'] };
   var MSG = {
     leave: { title: 'Leave Home?', line: 'Open Samsung Home?', note: '', actions: [['stay', 'Stay'], ['samsung', 'Samsung Home']] }
   };
@@ -67,6 +70,7 @@
     down: '<path d="m5 8.5 7 7 7-7"/>',
     updown: '<path d="m7.5 9.5 4.5-4.5 4.5 4.5M7.5 14.5l4.5 4.5 4.5-4.5"/>',
     tv: '<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7"/>',
+    input: '<path d="M4 8.5h16v6a2 2 0 0 1-2 2h-3.2l-.8 2.5h-4l-.8-2.5H6a2 2 0 0 1-2-2Z"/><path d="M8 11.5h8"/>',
     warn: '<path d="M12 4 2.8 19.5h18.4Z"/><path d="M12 10v4.5M12 17.3v.1"/>'
   };
 
@@ -74,7 +78,7 @@
   var REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var S = {
     variant: 'B', geom: 'broad', c: null, stack: null,
-    sel: null, selIdx: 0, lastUtil: 0, appsFocus: null, settingsFocus: 'background', appearanceFocus: 'bg', detailFocus: {},
+    sel: null, selIdx: 0, inp: 0, lastUtil: 0, appsFocus: null, settingsFocus: 'background', appearanceFocus: 'bg', detailFocus: {},
     undo: [], removedAt: {}, note: null, err: null,
     writes: 0, failed: 0, log: [], logN: 0, lastLaunch: null, press: null,
     wallShown: null, wallPending: null, wallError: null,
@@ -535,6 +539,7 @@
     key: function (t, k) {
       var f = t.f, h = S.c.home, U = utils(), x = axes(), i = ensureSel();
       if (S.c.layout === 'list') { listHomeKey(t, k, i, U); return; }
+      if (S.c.layout === 'rows') { rowsHomeKey(t, k, i, U); return; }
       if (f.zone === 'util') {
         f.u = clamp(f.u, 0, U.length - 1);
         if (k === x.prev && f.u > 0) f.u--;
@@ -556,10 +561,45 @@
       if (z === 'util') { t.f.zone = 'util'; t.f.u = i; S.lastUtil = i; }
       else if (z === 'app') { t.f.zone = 'apps'; setSel(S.c.home[i]); }
       else if (z === 'empty') t.f.zone = 'apps';
+      else if (z === 'input') { t.f.zone = 'inputs'; S.inp = clamp(i, 0, INPUTS.length - 1); }
       else return;
       this.key(t, 'ok');
     }
   };
+  /* Rows: Up/Down move between the controls, the Apps row and the Inputs row; Left/Right move along a row. */
+  function rowsHomeKey(t, k, i, U) {
+    var f = t.f, h = S.c.home;
+    if (f.zone === 'util') {
+      f.u = clamp(f.u, 0, U.length - 1);
+      if (k === 'left' && f.u > 0) f.u--;
+      else if (k === 'right' && f.u < U.length - 1) f.u++;
+      else if (k === 'down' || k === 'back') f.zone = 'apps';
+      else if (k === 'ok') { S.lastUtil = f.u; utilAction(U[f.u]); return; }
+      S.lastUtil = f.u;
+      return;
+    }
+    if (f.zone === 'inputs') {
+      S.inp = clamp(S.inp, 0, INPUTS.length - 1);
+      if (k === 'left' && S.inp > 0) S.inp--;
+      else if (k === 'right' && S.inp < INPUTS.length - 1) S.inp++;
+      else if (k === 'up' || k === 'back') f.zone = 'apps';
+      else if (k === 'ok') openInput(S.inp);
+      return;
+    }
+    f.zone = 'apps';
+    if (k === 'up') { f.zone = 'util'; f.u = clamp(S.lastUtil, 0, U.length - 1); }
+    else if (k === 'down') f.zone = 'inputs';
+    else if (k === 'back') openMessage('leave');
+    else if (!h.length) { if (k === 'ok') addAppsRoute(); }
+    else if (k === 'left' && i > 0) setSel(h[i - 1]);
+    else if (k === 'right' && i < h.length - 1) setSel(h[i + 1]);
+    else if (k === 'ok') launch(S.sel);
+  }
+  function openInput(i) {
+    var input = INPUTS[i];
+    if (!input || busy) return;
+    perform(input.name, function (done) { FrameDevice.input(input.number, done); });
+  }
   function listHomeKey(t, k, i, U) {
     var f = t.f, h = S.c.home;
     if (f.zone === 'util') {
@@ -855,7 +895,7 @@
       { id: 'rotation', title: 'Rotation', items: [{ action: 'background.rotation', label: mode().name, disabled: flat }], reason: flat ? 'Choose Photo to use wallpaper and rotation.' : '' }
     ];
     if (t.group === 'layout') return [
-      { id: 'layout', title: 'Layout', horizontal: true, items: options('layout', ['list', 'dock']) },
+      { id: 'layout', title: 'Layout', horizontal: true, items: options('layout', ['list', 'dock', 'rows']) },
       { id: 'apps', title: 'App display', horizontal: true, items: options('apps', ['text', 'icons', 'both']) },
       { id: 'controls', title: 'Home controls', horizontal: true, items: options('controls', ['text', 'icons', 'both']) }
     ];
@@ -978,7 +1018,7 @@
   var stage = $('stage'), homeEl = $('home'), caption = $('caption'), utilsEl = $('utils');
   var utilFocusLabel = $('utilFocusLabel'), utilFocusKey = '', appFocusName = $('appFocusName');
   var dock = $('dock'), shelf = $('shelf'), track = $('track'), plate = $('plate'), matScrim = $('matScrim'), dockEmpty = $('dockEmpty');
-  var cueL = $('cueL'), cueR = $('cueR'), dockAction = $('dockAction');
+  var cueL = $('cueL'), cueR = $('cueR'), dockAction = $('dockAction'), rowsEl = $('rows');
   var focusStatus = $('focusStatus'), sceneEl = $('scene'), appearanceEl = $('appearance'), appearanceRows = $('appearanceRows'), appearanceDesc = $('appearanceDesc');
   var appearanceBack = $('appearanceBack'), appearanceTitle = $('appearanceTitle'), appearanceStatus = $('appearanceStatus');
   var phScene = $('phScene'), phPlate = $('phPlate'), phField = $('phField'), phList = $('phList'), phRows = $('phRows'), phAction = $('phAction'), phEmpty = $('phEmpty');
@@ -1051,6 +1091,7 @@
     renderCaption(t, hs);
     renderUtils(hs);
     if (S.c.layout === 'list') renderList(hs);
+    else if (S.c.layout === 'rows') { photoMode = null; renderRows(hs); }
     else { photoMode = null; renderDock(hs); }
     renderAppFocusName(hs);
   }
@@ -1066,7 +1107,8 @@
   }
   function renderCaption(t, hs) {
     var html = '<span class="clock">' + clockHtml() + '</span>';
-    if (S.c.apps !== 'icons' && hs.items[hs.i] && (S.c.layout === 'list' ? photoLabel(hs.items[hs.i].id, false).size < 88 || photoLabel(hs.items[hs.i].id, false).ellipsis : hs.zone === 'apps' && reducedDockLabel(hs.items[hs.i].id))) html += '<span class="cap-line full-name">' + esc(app(hs.items[hs.i].id).name) + '</span>';
+    if (S.c.layout === 'rows') { var now = new Date(); html += '<span class="cap-line rows-date">' + DAYS[now.getDay()] + ', ' + now.getDate() + ' ' + MONTHS[now.getMonth()] + '</span>'; }
+    else if (S.c.apps !== 'icons' && hs.items[hs.i] && (S.c.layout === 'list' ? photoLabel(hs.items[hs.i].id, false).size < 88 || photoLabel(hs.items[hs.i].id, false).ellipsis : hs.zone === 'apps' && reducedDockLabel(hs.items[hs.i].id))) html += '<span class="cap-line full-name">' + esc(app(hs.items[hs.i].id).name) + '</span>';
     setHTML(caption, html);
   }
 
@@ -1136,7 +1178,7 @@
   }
   function renderAppFocusName(hs) {
     var it = hs.items[hs.i], width, x, y, placement;
-    if (S.c.apps !== 'icons' || hs.mode !== 'browse' || hs.zone !== 'apps' || !it) { appFocusName.className = 'app-focus-name'; return; }
+    if (S.c.layout === 'rows' || S.c.apps !== 'icons' || hs.mode !== 'browse' || hs.zone !== 'apps' || !it) { appFocusName.className = 'app-focus-name'; return; }
     appFocusName.textContent = app(it.id).name;
     width = Math.min(S.c.layout === 'list' ? 1056 : 1640, Math.ceil(textWidth(app(it.id).name, S.c.layout === 'list' ? 40 : 36, 500, -.6, 'primary') + 8));
     appFocusName.style.width = width + 'px';
@@ -1262,6 +1304,29 @@
       dockAction.removeAttribute('data-z'); dockAction.removeAttribute('data-action');
     }
     setHTML(dockEmpty, empty ? '<p>No apps on Home</p><button type="button" tabindex="-1" class="btn' + (hs.zone === 'empty' ? ' is-focus' : '') + '" data-z="empty" data-i="0" data-action="home.add-apps">' + icon('plus') + '<span>Add apps</span></button>' : '');
+  }
+
+  /* Rows: the Apps and Inputs rows share one tile pitch so focus moves straight up and down. */
+  function rowTileHtml(zone, i, action, label, mark, focus, press) {
+    return '<div class="rt' + (focus ? ' is-focus' : '') + (press ? ' is-press' : '') + '" role="button" aria-label="' + esc(label) + '" data-z="' + zone + '" data-i="' + i + '" data-action="' + action + '">'
+      + '<span class="rt-mark">' + mark + '</span><span class="rt-name">' + esc(label) + '</span></div>';
+  }
+  function renderRows(hs) {
+    var h = S.c.home, i = Math.max(0, ensureSel()), appsFocus = hs.zone === 'apps', inputsFocus = hs.zone === 'inputs', html = '';
+    html += '<h3 class="rows-head">Apps</h3><div class="rows-line">';
+    if (!h.length) html += '<button type="button" tabindex="-1" class="btn' + (appsFocus ? ' is-focus' : '') + '" data-z="empty" data-i="0" data-action="home.add-apps">' + icon('plus') + '<span>Add apps</span></button>';
+    h.forEach(function (id, n) { var a = app(id); html += rowTileHtml('app', n, 'home.app.' + id, a.name, appMark(a, 84, 64, 56), appsFocus && n === i, S.press === id); });
+    html += '</div><h3 class="rows-head">Inputs</h3><div class="rows-line">';
+    INPUTS.forEach(function (input, n) { html += rowTileHtml('input', n, 'home.input.' + input.id, input.name, icon('input'), inputsFocus && n === S.inp, false); });
+    html += '</div>';
+    rowsEl.className = 'rows';
+    setHTML(rowsEl, html);
+    Array.prototype.forEach.call(rowsEl.querySelectorAll('[data-native-icon]'), function (img) {
+      function ready() { img.parentNode.classList.add('has-native-icon'); }
+      function failed() { img.style.display = 'none'; img.parentNode.classList.remove('has-native-icon'); }
+      img.onload = ready; img.onerror = failed;
+      if (img.complete) { if (img.naturalWidth) ready(); else failed(); }
+    });
   }
 
   function photoModeTransition(compact) {

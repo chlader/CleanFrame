@@ -326,6 +326,23 @@ try {
     await current.waitForFunction(() => !ShoreQA.state().pending);
     check('Failed appearance write keeps display and preferences', (await state()).look.bg === old.look.bg && same(await stored(), oldStored));
   });
+  await run('Rows layout navigation', async () => {
+    await page(); await look({ bg: 'dark', layout: 'rows' });
+    check('Rows opens on the first app', (await state()).focusAction === 'home.app.' + (await state()).selected);
+    await nav('down');
+    check('Down from Apps reaches the first input', (await state()).focusAction === 'home.input.hdmi1', (await state()).focusAction);
+    await nav('right', 'right', 'right');
+    check('Inputs row stops at the last input', (await state()).focusAction === 'home.input.hdmi3', (await state()).focusAction);
+    await nav('down');
+    check('Down from Inputs stays on Inputs', (await state()).focusAction === 'home.input.hdmi3', (await state()).focusAction);
+    await nav('ok');
+    check('An input reports that the TV is required', (await state()).view === 'message' && (await state()).launches !== 1);
+    await nav('back');
+    await nav('up');
+    check('Up from Inputs returns to Apps', /^home\.app\./.test((await state()).focusAction || ''), (await state()).focusAction);
+    await nav('up');
+    check('Up from Apps reaches the Home controls', /^util\./.test((await state()).focusAction || ''), (await state()).focusAction);
+  });
   await run('Appearance axes, fonts, scaling and matching materials', async () => {
     await page();
     for (const bg of ['dark', 'light', 'photo']) for (const layout of ['list', 'dock']) for (const focus of ['type', 'glass']) {
@@ -365,7 +382,7 @@ try {
     check('Overview has all six settings groups', same((await call('actions')).filter(a => expected.includes(a)).sort(), expected.slice().sort()));
     const specs = {
       background: { bg: ['dark', 'light', 'photo'] },
-      layout: { layout: ['list', 'dock'], apps: ['icons', 'both', 'text'], controls: ['icons', 'both', 'text'] },
+      layout: { layout: ['list', 'dock', 'rows'], apps: ['icons', 'both', 'text'], controls: ['icons', 'both', 'text'] },
       typography: { font: (await state()).fonts.available },
       focus: { focus: ['type', 'glass'], material: ['soft', 'frost', 'tint'] }
     };
@@ -434,7 +451,7 @@ try {
     await page();
     const specs = [
       ['background', 'bg', ['dark', 'light', 'photo']],
-      ['layout', 'layout', ['list', 'dock']],
+      ['layout', 'layout', ['list', 'dock', 'rows']],
       ['layout', 'apps', ['icons', 'text', 'both']],
       ['layout', 'controls', ['text', 'both', 'icons']],
       ['typography', 'font', (await state()).fonts.available],

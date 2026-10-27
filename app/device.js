@@ -47,6 +47,18 @@
       api().launchAppControl(control, 'org.tizen.art-app', function () { finish(null); }, function (err) { finish(failure(err)); });
     } catch (err) { finish(failure(err)); }
   }
+  /* Unverified on hardware: relies on the Tizen TV Window API, which needs its own privilege and a TV that grants it. */
+  function input(number, done) {
+    var tv = window.tizen && window.tizen.tvwindow;
+    if (!tv || !tv.setSource) { unavailable(done); return; }
+    var finish = bounded(done);
+    try {
+      tv.setSource({ type: 'HDMI', number: number }, function () {
+        try { tv.show([0, 0, 1920, 1080], function () { finish(null); }, function (err) { finish(failure(err)); }, 'MAIN'); }
+        catch (err) { finish(failure(err)); }
+      }, function (err) { finish(failure(err)); }, 'MAIN');
+    } catch (err) { finish(failure(err)); }
+  }
   function home(done) { launchApp('com.samsung.tv.csfs', done); }
   function settings(done) { launchApp('com.samsung.tv.coba.setting', done); }
   function apps(done) {
@@ -70,5 +82,5 @@
       }, function (err) { finish(failure(err)); });
     } catch (err) { finish(failure(err)); }
   }
-  window.FrameDevice = { launch: launch, launchApp: launchApp, art: art, home: home, settings: settings, apps: apps };
+  window.FrameDevice = { launch: launch, launchApp: launchApp, art: art, input: input, home: home, settings: settings, apps: apps };
 }());
