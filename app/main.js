@@ -22,8 +22,17 @@
     { id: 'primevideo', name: 'Prime Video', mark: true, appId: 'org.tizen.primevideo' },
     { id: 'abciview', name: 'ABC iview', mark: true, appId: 'mWK87Xghap.ABCiview' },
     { id: 'sbs', name: 'SBS On Demand', mark: true, appId: 'OyE7OuxlUi.SBSOnDemand' },
-    { id: 'applemusic', name: 'Apple Music', mark: true, appId: 'org.tizen.apple.apple-music' }
+    { id: 'applemusic', name: 'Apple Music', mark: true, appId: 'org.tizen.apple.apple-music' },
+    { id: 'youtubetv', name: 'YouTube TV', mark: true, appId: 'PvWgqxV3Xa.YouTubeTV' },
+    { id: 'hulu', name: 'Hulu', mark: false, appId: 'LBUAQX1exg.Hulu' },
+    { id: 'hbomax', name: 'HBO Max', mark: true, appId: '5b8c3eb16b.BeamCTVDev' },
+    { id: 'peacock', name: 'Peacock', mark: false, appId: 'gzcc4LRFBF.Peacock' },
+    { id: 'paramountplus', name: 'Paramount+', mark: true, appId: 'rJyOSqC6Up.CBSAllAccess' },
+    { id: 'espn', name: 'ESPN', mark: false, appId: 'XtU8fQk2gN.ESPN' },
+    { id: 'chsn', name: 'CHSN', mark: false, appId: 'HY6oqJ8Qp5.CHSN' }
   ];
+  /* Home starts with the apps the reference-TV audit found on this TV; the other known apps stay available if installed. */
+  var DEFAULT_HOME = ['netflix', 'disneyplus', 'youtube', 'appletv', 'primevideo', 'youtubetv', 'hulu', 'hbomax', 'peacock'];
   var PRIMARY = PRIMARY_APPS.map(function (a) { return a.id; }), APPS = PRIMARY_APPS.slice(), ALPHA = [];
   var WALLS = window.CleanFrameWallpapers || [{ id: 'misty', name: 'Misty coast', tone: 'light', ut: { tr: 'mist', br: 'mist' }, frostVeil: .20 }];
   var ADAPTIVE_INK = window.CleanFrameAdaptiveInk || {};
@@ -342,7 +351,7 @@
       if (!app(id) && id.indexOf('.') > 0) APPS.push({ id: id, appId: id, name: id.split('.').pop(), mark: false });
       if (app(id)) h.push(id);
     });
-    if (!h.length) h = PRIMARY.slice();
+    if (!h.length) h = DEFAULT_HOME.slice();
     (Array.isArray(s.recent) ? s.recent : []).forEach(function (id) { if (safeId(id) && app(id) && h.indexOf(id) < 0 && recent.indexOf(id) < 0 && recent.length < 5) recent.push(id); });
     return {
       bg: pick(modern.bg, LOOK_VALUES.bg, legacyList ? 'dark' : 'photo'), layout: pick(modern.layout, LOOK_VALUES.layout, legacyList ? 'list' : 'dock'),

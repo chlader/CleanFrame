@@ -34,7 +34,7 @@ The selected font applies to Home app names, the clock and Home controls, includ
 
 ## Streaming apps
 
-The nine default apps keep their known native IDs. Other installed consumer apps can also be added to Home. Launching uses the public `tizen.application.launch` API with the app's native ID. Missing apps and denied launches produce a real error. No web player, placeholder success page or account credential is embedded.
+Home starts with five apps (Netflix, Disney+, YouTube, Apple TV and Prime Video), the ones found on a US 2020 Samsung TV (UN55TU7000FXZA) when its installed apps were read. Stremio, ABC iview, SBS On Demand and Apple Music keep their known native IDs and can be added where installed. Other installed consumer apps can also be added to Home. Launching uses the public `tizen.application.launch` API with the app's native ID. Missing apps and denied launches produce a real error. No web player, placeholder success page or account credential is embedded.
 
 ## All apps
 
